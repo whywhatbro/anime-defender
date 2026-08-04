@@ -1,4 +1,4 @@
--- PART 1: ANIME DEFENDERS SERVICES V40, MACRO BUFFER & ANTI-AFK TREO MAY
+-- PART 1: SYSTEM INITIALIZATION & TIMER CONFIG Core
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -12,15 +12,16 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
-local CONFIG_FILE = "AD_TayTruong_V40_Config.json"
-local MACRO_FILE = "AD_TayTruong_Macro_V40.json"
+local CONFIG_FILE = "AD_TayTruong_V41_Config.json"
+local MACRO_FILE = "AD_TayTruong_Macro_V41.json"
 
 local macroData = {}
 local isRecording = false
 local isReplaying = false
+local matchTimer = 0 -- Bộ đếm thời gian trận đấu (giây)
 
 local config = {
-    autoLoop = false, -- Tự động tạo trận/chơi lại/Thoát
+    autoLoop = false,
     autoSpeed = false,
     menuTextureId = "rbxassetid://0",
     toggleTextureId = "rbxassetid://0"
@@ -42,7 +43,7 @@ local function loadConfig()
 end
 loadConfig()
 
--- ANTI-AFK CẤP PHẦN CỨNG BYPASS BY ĐẠI TÀY TRƯỞNG
+-- ANTI-AFK KHÔNG BỊ KICK KHỎI TRẬN
 pcall(function()
     Player.Idled:Connect(function()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
@@ -52,10 +53,10 @@ pcall(function()
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DaiTayTruongAnimeDefendersV40"
+ScreenGui.Name = "DaiTayTruongAnimeDefendersV41"
 ScreenGui.ResetOnSpawn = false
 if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = PlayerGui end
--- PART 2: UI HARD-CODED INTERFACE & ALL CONTROL BUTTONS POPULATING
+-- PART 2: DRAGGABLE TOGGLE BUTTON & FIXED HORIZONTAL CONTAINER
 local ToggleMenuButton = Instance.new("ImageButton")
 ToggleMenuButton.Size = UDim2.new(0, 55, 0, 55)
 ToggleMenuButton.Position = UDim2.new(0.02, 0, 0.25, 0)
@@ -94,7 +95,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(45, 20, 55)
 Title.BackgroundTransparency = 0.2
-Title.Text = "FREE HACK BY ĐẠI TÀY TRƯỞNG - ANIME DEFENDERS V40 GOD MACRO"
+Title.Text = "FREE HACK BY ĐẠI TÀY TRƯỞNG - V41 FIXED TIME MACRO"
 Title.TextColor3 = Color3.fromRGB(255, 215, 0)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 12
@@ -103,7 +104,7 @@ local UICornerTitle = Instance.new("UICorner") UICornerTitle.CornerRadius = UDim
 
 local LeftColumn = Instance.new("Frame") LeftColumn.Size = UDim2.new(0.46, 0, 0.8, 0) LeftColumn.Position = UDim2.new(0.02, 0, 0.18, 0) LeftColumn.BackgroundTransparency = 1 LeftColumn.Parent = MainFrame
 local RightColumn = Instance.new("Frame") RightColumn.Size = UDim2.new(0.46, 0, 0.8, 0) RightColumn.Position = UDim2.new(0.52, 0, 0.18, 0) RightColumn.BackgroundTransparency = 1 RightColumn.Parent = MainFrame
-
+-- PART 3: BUTTON CREATOR & INTERFACE PROPERTY HANDLERS
 local function createMenuButton(text, parent, posY, color)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 32)
@@ -134,23 +135,34 @@ local function createMenuTextBox(placeholder, parent, posY)
     return box
 end
 
-local RecordBtn = createMenuButton("🔴 Bắt Đầu Ghi Vị Trí (Record)", LeftColumn, 0, Color3.fromRGB(180, 20, 20))
-local ReplayBtn = createMenuButton("▶️ Đặt Lại Trận Trước (Replay Macro)", LeftColumn, 40, Color3.fromRGB(0, 120, 200))
-local AutoLoopBtn = createMenuButton("Vòng Lặp Sảnh (Auto Start/PlayAgain/Leave): TẮT", LeftColumn, 80, Color3.fromRGB(200, 50, 50))
+local RecordBtn = createMenuButton("🔴 Bắt Đầu Ghi (Record Map)", LeftColumn, 0, Color3.fromRGB(180, 20, 20))
+local ReplayBtn = createMenuButton("▶️ Đặt Lại Theo Thời Gian (Replay)", LeftColumn, 40, Color3.fromRGB(0, 120, 200))
+local AutoLoopBtn = createMenuButton("Vòng Lặp Sảnh (Auto Loop Match): TẮT", LeftColumn, 80, Color3.fromRGB(200, 50, 50))
 local AutoSpeedBtn = createMenuButton("Auto Bật Tốc Độ X3 Trận: TẮT", LeftColumn, 120, Color3.fromRGB(200, 50, 50))
 
 local TextureBox = createMenuTextBox("Dán ID ảnh nền Menu...", RightColumn, 0)
 local ToggleTextureBox = createMenuTextBox("Dán ID ảnh Nút Tròn...", RightColumn, 40)
 local SaveCustomGuiBtn = createMenuButton("💾 Áp Dụng Hình Nền Mới", RightColumn, 80, Color3.fromRGB(140, 20, 180))
--- PART 3: REAL-TIME WORKSPACE UNIT DETECTOR & STEPPED PLACEMENT REPLAYER
+-- PART 4: REAL-TIME TIME-STAMPED RECORD & PLACEMENT LOGIC (FIXED CRASH)
 local networkFolder = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Network") or ReplicatedStorage:FindFirstChild("Remote")
 
--- Tìm thư mục chứa tháp đang chiến đấu trên map thực tế của game
 local function getUnitsFolder()
-    return Workspace:FindFirstChild("PlacedTowers") or Workspace:FindFirstChild("Units") or Workspace:FindFirstChild("Towers") or Workspace:FindFirstChild("ActiveUnits")
+    return Workspace:FindFirstChild("PlacedTowers") or Workspace:FindFirstChild("Units") or Workspace:FindFirstChild("Towers")
 end
 
--- 1. THUẬT TOÁN TỰ ĐỘNG GHI NHỚ REAL-TIME KHI PHÁT HIỆN THÁP MỚI ĐƯỢC SINH RA
+-- Bộ đếm thời gian (giây trôi qua từ khi vào trận)
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if isRecording or isReplaying then
+            matchTimer = matchTimer + 1
+        else
+            matchTimer = 0
+        end
+    end
+end)
+
+-- Thuật toán Quét ghi nhớ Tọa độ + Tên tháp + Mốc thời gian đặt tháp
 local lastCheckedCount = 0
 RunService.Heartbeat:Connect(function()
     if isRecording then
@@ -159,23 +171,19 @@ RunService.Heartbeat:Connect(function()
             local children = folder:GetChildren()
             if #children > lastCheckedCount then
                 for _, tower in pairs(children) do
-                    -- Quét và chỉ ghi lại những tháp thuộc quyền sở hữu của chính bạn
-                    if tower:IsA("Model") and tower:FindFirstChild("Owner") and tower.Owner.Value == Player.Name and not tower:FindFirstChild("V40Recorded") then
+                    if tower:IsA("Model") and tower:FindFirstChild("Owner") and tower.Owner.Value == Player.Name and not tower:FindFirstChild("V41Recorded") then
                         local rootPart = tower:FindFirstChild("HumanoidRootPart") or tower:FindFirstChildOfClass("BasePart")
                         if rootPart then
-                            local tag = Instance.new("BoolValue", tower) tag.Name = "V40Recorded"
-                            
-                            -- Đưa dữ liệu tháp: Tên, Tọa độ bản đồ chuẩn xác vào mảng
+                            local tag = Instance.new("BoolValue", tower) tag.Name = "V41Recorded"
                             table.insert(macroData, {
-                                type = "Place",
                                 name = tower.Name,
                                 x = rootPart.Position.X,
                                 y = rootPart.Position.Y,
                                 z = rootPart.Position.Z,
-                                upgradeLevel = 0
+                                timestamp = matchTimer -- Lưu số giây thực tế lúc đặt tháp
                             })
                             pcall(function() if writefile then writefile(MACRO_FILE, HttpService:JSONEncode(macroData)) end end)
-                            print("Đại tày trưởng - Đã ghi nhớ tháp: " .. tower.Name)
+                            print("Đã ghi nhớ tháp: " .. tower.Name .. " vào giây thứ: " .. matchTimer)
                         end
                     end
                 end
@@ -185,29 +193,28 @@ RunService.Heartbeat:Connect(function()
     else
         lastCheckedCount = 0
     end
-end do
+end)
 
--- 2. THUẬT TOÁN PHÁT LẠI (REPLAY) THẢ UNITS VÀ TỰ ĐỘNG NÂNG CẤP KHI ĐỦ TIỀN
+-- Thuật toán Tự Đặt Tháp khi trận đấu đạt đến đúng mốc thời gian giây đã lưu
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.5) do
         if isReplaying and #macroData > 0 and networkFolder then
             local placeRemote = networkFolder:FindFirstChild("PlaceTower") or networkFolder:FindFirstChild("SpawnUnit") or networkFolder:FindFirstChild("PlaceUnit")
             local upgradeRemote = networkFolder:FindFirstChild("UpgradeTower") or networkFolder:FindFirstChild("UpgradeUnit")
             
             if placeRemote then
                 for _, info in pairs(macroData) do
-                    if not isReplaying then break end
-                    local targetCFrame = CFrame.new(info.x, info.y, info.z)
-                    
-                    -- Gửi sóng ép đặt tháp thành công bất kể nhân vật đang đứng ở bất kỳ đâu
-                    pcall(function() placeRemote:InvokeServer(info.name, targetCFrame) end)
-                    task.wait(0.3)
-                    
-                    -- Nếu bạn cấu hình Auto Nâng Cấp, script sẽ tự động ép nâng cấp tháp này lên mốc cũ
-                    if upgradeRemote and getUnitsFolder() then
-                        for _, tower in pairs(getUnitsFolder():GetChildren()) do
-                            if tower.Name == info.name and tower:FindFirstChild("Owner") and tower.Owner.Value == Player.Name then
-                                pcall(function() upgradeRemote:InvokeServer(tower) end)
+                    -- CHỈ TỰ ĐỘNG ĐẶT KHI TRẬN ĐẤU ĐẾN ĐÚNG SỐ GIÂY ĐÃ LƯU
+                    if isReplaying and matchTimer >= info.timestamp then
+                        local targetCFrame = CFrame.new(info.x, info.y, info.z)
+                        pcall(function() placeRemote:InvokeServer(info.name, targetCFrame) end)
+                        
+                        -- Đồng bộ nâng cấp tự động tháp vừa đặt
+                        if upgradeRemote and getUnitsFolder() then
+                            for _, tower in pairs(getUnitsFolder():GetChildren()) do
+                                if tower.Name == info.name and tower:FindFirstChild("Owner") and tower.Owner.Value == Player.Name then
+                                    pcall(function() upgradeRemote:InvokeServer(tower) end)
+                                end
                             end
                         end
                     end
@@ -216,27 +223,21 @@ task.spawn(function()
         end
     end
 end)
--- PART 4: LOBBY REPLAY INTERACTION, AUTO GAME LOOP & RECOVERY VISUALS
+-- PART 5: LOBBY LOOP ENGINE & INTERFACE SYNC EXECUTOR
 task.spawn(function()
     while task.wait(2) do
         if networkFolder then
-            -- 1. Auto Speed X3 tốc độ trận đấu liên tục
             if config.autoSpeed then
-                local speedRemote = networkFolder:FindFirstChild("ChangeSpeed") or networkFolder:FindFirstChild("ToggleVoteSpeed") or networkFolder:FindFirstChild("VoteSpeed")
+                local speedRemote = networkFolder:FindFirstChild("ChangeSpeed") or networkFolder:FindFirstChild("ToggleVoteSpeed")
                 if speedRemote then speedRemote:FireServer(true) end
             end
-            
-            -- 2. VÒNG LẶP SẢNH (AUTO START/PLAY AGAIN/LEAVE) KHI TRẬN ĐẤU KẾT THÚC
             if config.autoLoop then
-                -- Tự động gửi sóng sẵn sàng/vào trận đấu mới từ sảnh
                 local startRemote = networkFolder:FindFirstChild("StartGame") or networkFolder:FindFirstChild("ReadyMatch") or networkFolder:FindFirstChild("TeleportToStory")
                 if startRemote then startRemote:FireServer() end
                 
-                -- Tự động bấm nút Chơi Lại (Play Again)
                 local replayRemote = networkFolder:FindFirstChild("ReplayMatch") or networkFolder:FindFirstChild("PlayAgain")
                 if replayRemote then replayRemote:FireServer() end
                 
-                -- Tự động Thoát trận (Leave) nhận quà khi phát hiện trận đấu kết thúc (Hệ thống Hiện bảng Victory/Defeat)
                 local claimRemote = networkFolder:FindFirstChild("ClaimRewards") or networkFolder:FindFirstChild("ClaimMatch") or networkFolder:FindFirstChild("LeaveMatch")
                 if claimRemote then claimRemote:FireServer() end
             end
@@ -250,10 +251,10 @@ SaveCustomGuiBtn.MouseButton1Click:Connect(function()
 end)
 
 local function refreshVisuals()
-    RecordBtn.Text = isRecording and "⏸️ Đang Ghi Vị Trí Tháp..." or "🔴 Bắt Đầu Ghi Vị Trí (Record)"
+    RecordBtn.Text = isRecording and "⏸️ Đang Ghi Macro..." or "🔴 Bắt Đầu Ghi Vị Trí (Record)"
     RecordBtn.BackgroundColor3 = isRecording and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 20, 20)
     
-    ReplayBtn.Text = isReplaying and "⏸️ Đang Thả Tháp Tự Động..." or "▶️ Đặt Lại Trận Trước (Replay Macro)"
+    ReplayBtn.Text = isReplaying and "⏸️ Đang Chạy Macro Theo Giây..." or "▶️ Đặt Lại Theo Thời Gian (Replay)"
     ReplayBtn.BackgroundColor3 = isReplaying and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(0, 120, 200)
     
     AutoLoopBtn.Text = config.autoLoop and "Vòng Lặp Sảnh Loop: BẬT" or "Vòng Lặp Sảnh Loop: TẮT"
@@ -265,11 +266,11 @@ end
 
 RecordBtn.MouseButton1Click:Connect(function()
     isRecording = not isRecording
-    if isRecording then macroData = {} pcall(function() if delitem or deletefile then deletefile(MACRO_FILE) end end) end
+    if isRecording then macroData = {} matchTimer = 0 pcall(function() if deletefile then deletefile(MACRO_FILE) end end) end
     refreshVisuals()
 end)
 
-ReplayBtn.MouseButton1Click:Connect(function() isReplaying = not isReplaying refreshVisuals() end)
+ReplayBtn.MouseButton1Click:Connect(function() isReplaying = not isReplaying if isReplaying then matchTimer = 0 end refreshVisuals() end)
 AutoLoopBtn.MouseButton1Click:Connect(function() config.autoLoop = not config.autoLoop saveConfig() refreshVisuals() end)
 AutoSpeedBtn.MouseButton1Click:Connect(function() config.autoSpeed = not config.autoSpeed saveConfig() refreshVisuals() end)
 
@@ -279,4 +280,4 @@ MainFrame.InputBegan:Connect(function(input) if input.UserInputType == Enum.User
 MainFrame.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 
 refreshVisuals()
-print("free hack by dai tay truong V40 God Macro Activated!")
+print("free hack by dai tay truong V41 Fixed Time Macro Loaded successfully!")
