@@ -1,147 +1,199 @@
--- Anime Defenders - Booth & Inventory Emerald Manager
-local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-
--- 1. TẠO GIAO DIỆN MENU CHÍNH
-local targetParent = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
-if targetParent:FindFirstChild("AD_BoothManager") then
-    targetParent.AD_BoothManager:Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui", targetParent)
-ScreenGui.Name = "AD_BoothManager"
-ScreenGui.ResetOnSpawn = false
-
--- Nút Bật/Tắt Menu
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 90, 0, 35)
-ToggleBtn.Position = UDim2.new(0, 10, 0.25, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
-ToggleBtn.Text = "EMERALD BOOTH"
-ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 180)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 10
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", ToggleBtn).Color = Color3.fromRGB(0, 255, 180)
-
--- Khung Giao Diện
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 500, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 22, 30)
-MainFrame.Active = true
-MainFrame.Draggable = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", MainFrame).Color = Color3.fromRGB(0, 170, 255)
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
+-- Tối ưu hóa hiệu suất & Anti-AFK
+local VirtualUser = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- Tiêu đề
-local Header = Instance.new("TextLabel", MainFrame)
-Header.Size = UDim2.new(1, 0, 0, 35)
-Header.BackgroundColor3 = Color3.fromRGB(12, 15, 20)
-Header.Text = "  📦 QUẢN LÝ KHO ĐỒ & GIAN HÀNG EMERALD"
-Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.Font = Enum.Font.GothamBold
-Header.TextSize = 12
-Header.TextXAlignment = Enum.TextXAlignment.Left
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
+-- Load UI Library (Rayfield)
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Tab Kho Đồ (Inventory & Units)
-local InvScroll = Instance.new("ScrollingFrame", MainFrame)
-InvScroll.Position = UDim2.new(0.02, 0, 0.13, 0)
-InvScroll.Size = UDim2.new(0.47, 0, 0.82, 0)
-InvScroll.BackgroundColor3 = Color3.fromRGB(24, 30, 40)
-InvScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-InvScroll.ScrollBarThickness = 4
-Instance.new("UICorner", InvScroll).CornerRadius = UDim.new(0, 6)
-local InvLayout = Instance.new("UIGridLayout", InvScroll)
-InvLayout.CellSize = UDim2.new(0, 65, 0, 65)
-InvLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+local Window = Rayfield:CreateWindow({
+   Name = "👑 Anime Defenders VIP - Trade & Booth",
+   LoadingTitle = "Đang tải Script VIP...",
+   LoadingSubtitle = "By YourName",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, 
+      FileName = "AD_VIP_Hub"
+   },
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink", 
+      RememberJoins = true 
+   },
+   KeySystem = false
+})
 
--- Tab Gian Hàng Của Tôi (Booth Management)
-local BoothScroll = Instance.new("ScrollingFrame", MainFrame)
-BoothScroll.Position = UDim2.new(0.51, 0, 0.13, 0)
-BoothScroll.Size = UDim2.new(0.47, 0, 0.82, 0)
-BoothScroll.BackgroundColor3 = Color3.fromRGB(24, 30, 40)
-BoothScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-BoothScroll.ScrollBarThickness = 4
-Instance.new("UICorner", BoothScroll).CornerRadius = UDim.new(0, 6)
-local BoothLayout = Instance.new("UIListLayout", BoothScroll)
-BoothLayout.Padding = UDim.new(0, 5)
+-- ==========================================
+-- TAB 1: QUẢN LÝ GIAN HÀNG (BOOTH MANAGER)
+-- ==========================================
+local BoothTab = Window:CreateTab("🏪 Gian Hàng", nil)
 
--- 2. HÀM QUÉT KHO ĐỒ VÀ HIỂN THỊ HÌNH ẢNH
-local function ScanInventoryAndDisplay()
-    for _, v in pairs(InvScroll:GetChildren()) do
-        if v:IsA("ImageButton") then v:Destroy() end
-    end
+local sellPrice = 100
+local unitToSell = "Gems"
+local autoListEnabled = false
+local snipeEnabled = false
+local maxSnipePrice = 50
 
-    -- Giả lập hoặc gọi dữ liệu Inventory từ Client Data của game
-    pcall(function()
-        local playerData = LocalPlayer:FindFirstChild("PlayerGui") -- Thay đổi theo cấu trúc data thực tế nếu cần
-        -- Quét qua các item/unit trong kho đồ người chơi
-        -- Ví dụ minh họa item render:
-        for i = 1, 12 do -- Render mẫu danh sách kho đồ có hình ảnh
-            local itemCard = Instance.new("ImageButton", InvScroll)
-            itemCard.BackgroundColor3 = Color3.fromRGB(35, 45, 60)
-            itemCard.Image = "rbxassetid://6023426915" -- Icon mặc định/đại diện
-            Instance.new("UICorner", itemCard).CornerRadius = UDim.new(0, 6)
+BoothTab:CreateSection("Cài đặt Đăng bán")
 
-            itemCard.MouseButton1Click:Connect(function()
-                print("Đã chọn item để bán lấy emerald. Đang gửi yêu cầu lên Booth Remote...")
-                -- Gửi RemoteEvent để thêm vào gian hàng bán giá Emerald
-            end)
-        end
-    end)
-end
+BoothTab:CreateInput({
+   Name = "Tên Unit/Vật phẩm cần bán",
+   PlaceholderText = "Nhập tên...",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+       unitToSell = Text
+   end,
+})
 
--- 3. HÀM QUÉT GIAN HÀNG HIỆN TẠI (Dù chưa mở booth)
-local function ScanMyBoothData()
-    for _, v in pairs(BoothScroll:GetChildren()) do
-        if v:IsA("Frame") then v:Destroy() end
-    end
+BoothTab:CreateSlider({
+   Name = "Giá bán mặc định (Gems)",
+   Range = {10, 100000},
+   Increment = 10,
+   Suffix = " Gems",
+   CurrentValue = 100,
+   Flag = "SellPrice",
+   Callback = function(Value)
+       sellPrice = Value
+   end,
+})
 
-    pcall(function()
-        -- Truy xuất trực tiếp dữ liệu gian hàng từ Network/ReplicatedStorage hoặc Player Data
-        -- Dù chưa tương tác mở booth, dữ liệu này vẫn lưu trên bộ nhớ client/server
-        for i = 1, 4 do -- Hiển thị các slot đang bán trong gian hàng
-            local slotFrame = Instance.new("Frame", BoothScroll)
-            slotFrame.Size = UDim2.new(1, 0, 0, 45)
-            slotFrame.BackgroundColor3 = Color3.fromRGB(32, 40, 55)
-            Instance.new("UICorner", slotFrame).CornerRadius = UDim.new(0, 6)
+BoothTab:CreateToggle({
+   Name = "Tự động đăng bán (Auto List)",
+   CurrentValue = false,
+   Flag = "AutoList",
+   Callback = function(Value)
+       autoListEnabled = Value
+       if autoListEnabled then
+           task.spawn(function()
+               while autoListEnabled do
+                   task.wait(2)
+                   -- THAY THẾ REMOTE EVENT TẠI ĐÂY
+                   -- Ví dụ: game:GetService("ReplicatedStorage").Remotes.ListBooth:FireServer(unitToSell, sellPrice)
+               end
+           end)
+       end
+   end,
+})
 
-            local infoLabel = Instance.new("TextLabel", slotFrame)
-            infoLabel.Size = UDim2.new(0.6, 0, 1, 0)
-            infoLabel.Position = UDim2.new(0.05, 0, 0, 0)
-            infoLabel.BackgroundTransparency = 1
-            infoLabel.Text = "Slot " .. i .. ": [Đang Bán Item]"
-            infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            infoLabel.Font = Enum.Font.Gotham
-            infoLabel.TextSize = 10
-            infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+BoothTab:CreateSection("Săn hàng rẻ (Sniper)")
 
-            local cancelBtn = Instance.new("TextButton", slotFrame)
-            cancelBtn.Size = UDim2.new(0.3, 0, 0.7, 0)
-            cancelBtn.Position = UDim2.new(0.67, 0, 0.15, 0)
-            cancelBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            cancelBtn.Text = "Hủy Bán"
-            cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            cancelBtn.Font = Enum.Font.GothamBold
-            cancelBtn.TextSize = 9
-            Instance.new("UICorner", cancelBtn).CornerRadius = UDim.new(0, 4)
+BoothTab:CreateSlider({
+   Name = "Giá mua tối đa",
+   Range = {1, 5000},
+   Increment = 1,
+   Suffix = " Gems",
+   CurrentValue = 50,
+   Flag = "SnipePrice",
+   Callback = function(Value)
+       maxSnipePrice = Value
+   end,
+})
 
-            cancelBtn.MouseButton1Click:Connect(function()
-                print("Gửi lệnh Remote hủy bán món đồ ở slot: " .. i)
-                -- Gọi RemoteEvent hủy bán để thu hồi item về kho
-            end)
-        end
-    end)
-end
+BoothTab:CreateToggle({
+   Name = "Kích hoạt Auto Snipe",
+   CurrentValue = false,
+   Flag = "AutoSnipe",
+   Callback = function(Value)
+       snipeEnabled = Value
+       if snipeEnabled then
+           task.spawn(function()
+               while snipeEnabled do
+                   task.wait(0.5)
+                   -- THAY THẾ REMOTE GET BOOTH TẠI ĐÂY
+                   -- Logic: Lấy data booth -> Check tên item -> Check giá < maxSnipePrice -> FireServer Buy
+               end
+           end)
+       end
+   end,
+})
 
--- Tự động quét khi khởi chạy script
-ScanInventoryAndDisplay()
-ScanMyBoothData()
+-- ==========================================
+-- TAB 2: GIAO DỊCH (TRADE MANAGER)
+-- ==========================================
+local TradeTab = Window:CreateTab("🤝 Giao Dịch", nil)
+
+local targetPlayer = ""
+local autoAccept = false
+
+TradeTab:CreateInput({
+   Name = "Tên người chơi (Username)",
+   PlaceholderText = "Nhập tên người muốn trade...",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+       targetPlayer = Text
+   end,
+})
+
+TradeTab:CreateButton({
+   Name = "Gửi yêu cầu Trade liên tục",
+   Callback = function()
+       -- THAY THẾ REMOTE TRADE TẠI ĐÂY
+       -- Ví dụ: game:GetService("ReplicatedStorage").Remotes.SendTrade:FireServer(targetPlayer)
+       Rayfield:Notify({
+           Title = "Đã gửi",
+           Content = "Đã gửi yêu cầu trade đến " .. targetPlayer,
+           Duration = 3,
+       })
+   end,
+})
+
+TradeTab:CreateToggle({
+   Name = "Tự động chấp nhận Trade (Auto Accept)",
+   CurrentValue = false,
+   Flag = "AutoAccept",
+   Callback = function(Value)
+       autoAccept = Value
+       if autoAccept then
+           task.spawn(function()
+               while autoAccept do
+                   task.wait(1)
+                   -- THAY THẾ REMOTE ACCEPT TẠI ĐÂY
+                   -- game:GetService("ReplicatedStorage").Remotes.AcceptTrade:FireServer()
+               end
+           end)
+       end
+   end,
+})
+
+-- ==========================================
+-- TAB 3: CÀI ĐẶT NÂNG CAO & WEBHOOK
+-- ==========================================
+local SettingsTab = Window:CreateTab("⚙️ Cài đặt", nil)
+
+local webhookURL = ""
+
+SettingsTab:CreateInput({
+   Name = "Discord Webhook URL (Báo cáo bán hàng)",
+   PlaceholderText = "https://discord.com/api/webhooks/...",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+       webhookURL = Text
+   end,
+})
+
+SettingsTab:CreateButton({
+   Name = "Test Webhook",
+   Callback = function()
+       if webhookURL ~= "" then
+           local data = {
+               ["content"] = "",
+               ["embeds"] = {{
+                   ["title"] = "🛒 Anime Defenders - Báo cáo Booth",
+                   ["description"] = "Script VIP đang hoạt động tốt!",
+                   ["color"] = tonumber(0x00ff00)
+               }}
+           }
+           local newdata = game:GetService("HttpService"):JSONEncode(data)
+           local headers = {["content-type"] = "application/json"}
+           request = http_request or request or HttpPost or syn.request
+           local abcdef = {Url = webhookURL, Body = newdata, Method = "POST", Headers = headers}
+           request(abcdef)
+       else
+           Rayfield:Notify({Title = "Lỗi", Content = "Vui lòng nhập Webhook URL trước!", Duration = 3})
+       end
+   end,
+})
+
+SettingsTab:CreateParagraph({Title = "Anti-AFK", Content = "Hệ thống Anti-AFK đã được tự động kích hoạt ngầm. Bạn sẽ không bị kick khi treo máy."})
