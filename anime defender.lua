@@ -1,108 +1,90 @@
--- Tối ưu hóa hiệu suất & Anti-AFK
+-- Tự động chống AFK (Anti-AFK)
 local VirtualUser = game:GetService("VirtualUser")
 game:GetService("Players").LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- Load UI Library (Rayfield)
+-- Load UI Library Rayfield
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "👑 Anime Defenders VIP - Trade & Booth",
-   LoadingTitle = "Đang tải Script VIP...",
-   LoadingSubtitle = "By YourName",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, 
-      FileName = "AD_VIP_Hub"
-   },
-   Discord = {
-      Enabled = false,
-      Invite = "noinvitelink", 
-      RememberJoins = true 
-   },
+   Name = "👑 Anime Defenders - Emerald Booth VIP",
+   LoadingTitle = "Đang kết nối Emerald System...",
+   LoadingSubtitle = "Auto Booth & Trade Helper",
+   ConfigurationSaving = { Enabled = true, FolderName = nil, FileName = "AD_Emerald_Config" },
    KeySystem = false
 })
 
 -- ==========================================
--- TAB 1: QUẢN LÝ GIAN HÀNG (BOOTH MANAGER)
+-- TAB 1: GIAN HÀNG EMERALD (BOOTH)
 -- ==========================================
-local BoothTab = Window:CreateTab("🏪 Gian Hàng", nil)
+local BoothTab = Window:CreateTab("💎 Emerald Booth", nil)
 
-local sellPrice = 100
-local unitToSell = "Gems"
-local autoListEnabled = false
-local snipeEnabled = false
-local maxSnipePrice = 50
+local itemToSell = "Star Shard (Yellow)"
+local unitToSell = "Legion Veteran"
+local emeraldPrice = 100
+local autoListItems = false
+local autoListUnits = false
 
-BoothTab:CreateSection("Cài đặt Đăng bán")
+BoothTab:CreateSection("🛒 Đăng Bán Vật Phẩm (Items)")
 
 BoothTab:CreateInput({
-   Name = "Tên Unit/Vật phẩm cần bán",
-   PlaceholderText = "Nhập tên...",
+   Name = "Tên Item (Risky Dice, Star Rift, Star Shard...)",
+   PlaceholderText = "Nhập chính xác tên Item...",
    RemoveTextAfterFocusLost = false,
-   Callback = function(Text)
-       unitToSell = Text
-   end,
+   Callback = function(Text) itemToSell = Text end,
 })
 
 BoothTab:CreateSlider({
-   Name = "Giá bán mặc định (Gems)",
-   Range = {10, 100000},
-   Increment = 10,
-   Suffix = " Gems",
-   CurrentValue = 100,
-   Flag = "SellPrice",
-   Callback = function(Value)
-       sellPrice = Value
-   end,
+   Name = "Giá bán Item (Emeralds)",
+   Range = {1, 50000},
+   Increment = 1,
+   Suffix = " 🟢 Emeralds",
+   CurrentValue = 50,
+   Flag = "ItemEmeraldPrice",
+   Callback = function(Value) emeraldPrice = Value end,
 })
 
 BoothTab:CreateToggle({
-   Name = "Tự động đăng bán (Auto List)",
+   Name = "Tự Động Đăng Bán Items",
    CurrentValue = false,
-   Flag = "AutoList",
+   Flag = "AutoListItem",
    Callback = function(Value)
-       autoListEnabled = Value
-       if autoListEnabled then
+       autoListItems = Value
+       if autoListItems then
            task.spawn(function()
-               while autoListEnabled do
+               while autoListItems do
                    task.wait(2)
-                   -- THAY THẾ REMOTE EVENT TẠI ĐÂY
-                   -- Ví dụ: game:GetService("ReplicatedStorage").Remotes.ListBooth:FireServer(unitToSell, sellPrice)
+                   -- Remote đăng bán Item lấy Emeralds
+                   -- game:GetService("ReplicatedStorage").Remotes.Booth:FireServer("ListItem", itemToSell, emeraldPrice)
                end
            end)
        end
    end,
 })
 
-BoothTab:CreateSection("Săn hàng rẻ (Sniper)")
+BoothTab:CreateSection("🛡️ Đăng Bán Nhân Vật (Units)")
 
-BoothTab:CreateSlider({
-   Name = "Giá mua tối đa",
-   Range = {1, 5000},
-   Increment = 1,
-   Suffix = " Gems",
-   CurrentValue = 50,
-   Flag = "SnipePrice",
-   Callback = function(Value)
-       maxSnipePrice = Value
-   end,
+BoothTab:CreateInput({
+   Name = "Tên Unit (Legion Veteran, Ant King...)",
+   PlaceholderText = "Nhập chính xác tên Unit...",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text) unitToSell = Text end,
 })
 
 BoothTab:CreateToggle({
-   Name = "Kích hoạt Auto Snipe",
+   Name = "Tự Động Đăng Bán Units",
    CurrentValue = false,
-   Flag = "AutoSnipe",
+   Flag = "AutoListUnit",
    Callback = function(Value)
-       snipeEnabled = Value
-       if snipeEnabled then
+       autoListUnits = Value
+       if autoListUnits then
            task.spawn(function()
-               while snipeEnabled do
-                   task.wait(0.5)
-                   -- THAY THẾ REMOTE GET BOOTH TẠI ĐÂY
-                   -- Logic: Lấy data booth -> Check tên item -> Check giá < maxSnipePrice -> FireServer Buy
+               while autoListUnits do
+                   task.wait(2)
+                   -- Remote đăng bán Unit lấy Emeralds
+                   -- game:GetService("ReplicatedStorage").Remotes.Booth:FireServer("ListUnit", unitToSell, emeraldPrice)
                end
            end)
        end
@@ -110,47 +92,43 @@ BoothTab:CreateToggle({
 })
 
 -- ==========================================
--- TAB 2: GIAO DỊCH (TRADE MANAGER)
+-- TAB 2: QUẢN LÝ GIAO DỊCH (TRADE)
 -- ==========================================
 local TradeTab = Window:CreateTab("🤝 Giao Dịch", nil)
 
 local targetPlayer = ""
-local autoAccept = false
+local autoAcceptTrade = false
+
+TradeTab:CreateSection("Gửi Lời Mời Giao Dịch")
 
 TradeTab:CreateInput({
-   Name = "Tên người chơi (Username)",
-   PlaceholderText = "Nhập tên người muốn trade...",
+   Name = "Tên Người Chơi",
+   PlaceholderText = "Nhập Username trong danh sách...",
    RemoveTextAfterFocusLost = false,
-   Callback = function(Text)
-       targetPlayer = Text
-   end,
+   Callback = function(Text) targetPlayer = Text end,
 })
 
 TradeTab:CreateButton({
-   Name = "Gửi yêu cầu Trade liên tục",
+   Name = "Gửi Yêu Cầu Trade",
    Callback = function()
-       -- THAY THẾ REMOTE TRADE TẠI ĐÂY
-       -- Ví dụ: game:GetService("ReplicatedStorage").Remotes.SendTrade:FireServer(targetPlayer)
-       Rayfield:Notify({
-           Title = "Đã gửi",
-           Content = "Đã gửi yêu cầu trade đến " .. targetPlayer,
-           Duration = 3,
-       })
+       if targetPlayer ~= "" then
+           -- game:GetService("ReplicatedStorage").Remotes.Trade:FireServer("SendRequest", targetPlayer)
+           Rayfield:Notify({Title = "Trade", Content = "Đã gửi yêu cầu trade tới " .. targetPlayer, Duration = 3})
+       end
    end,
 })
 
 TradeTab:CreateToggle({
-   Name = "Tự động chấp nhận Trade (Auto Accept)",
+   Name = "Tự Động Chấp Nhận Trade (Auto Accept)",
    CurrentValue = false,
-   Flag = "AutoAccept",
+   Flag = "AutoAcceptTrade",
    Callback = function(Value)
-       autoAccept = Value
-       if autoAccept then
+       autoAcceptTrade = Value
+       if autoAcceptTrade then
            task.spawn(function()
-               while autoAccept do
+               while autoAcceptTrade do
                    task.wait(1)
-                   -- THAY THẾ REMOTE ACCEPT TẠI ĐÂY
-                   -- game:GetService("ReplicatedStorage").Remotes.AcceptTrade:FireServer()
+                   -- game:GetService("ReplicatedStorage").Remotes.Trade:FireServer("Accept")
                end
            end)
        end
@@ -158,42 +136,32 @@ TradeTab:CreateToggle({
 })
 
 -- ==========================================
--- TAB 3: CÀI ĐẶT NÂNG CAO & WEBHOOK
+-- TAB 3: TIỆN ÍCH & DISCORD WEBHOOK
 -- ==========================================
-local SettingsTab = Window:CreateTab("⚙️ Cài đặt", nil)
+local UtilityTab = Window:CreateTab("⚙️ Tiện Ích", nil)
 
 local webhookURL = ""
 
-SettingsTab:CreateInput({
-   Name = "Discord Webhook URL (Báo cáo bán hàng)",
-   PlaceholderText = "https://discord.com/api/webhooks/...",
+UtilityTab:CreateInput({
+   Name = "Discord Webhook URL",
+   PlaceholderText = "Dán Webhook báo cáo bán Emeralds...",
    RemoveTextAfterFocusLost = false,
-   Callback = function(Text)
-       webhookURL = Text
-   end,
+   Callback = function(Text) webhookURL = Text end,
 })
 
-SettingsTab:CreateButton({
-   Name = "Test Webhook",
+UtilityTab:CreateButton({
+   Name = "Kiểm Tra Webhook",
    Callback = function()
        if webhookURL ~= "" then
            local data = {
-               ["content"] = "",
                ["embeds"] = {{
-                   ["title"] = "🛒 Anime Defenders - Báo cáo Booth",
-                   ["description"] = "Script VIP đang hoạt động tốt!",
-                   ["color"] = tonumber(0x00ff00)
+                   ["title"] = "🟢 Anime Defenders - Emerald Booth Log",
+                   ["description"] = "Đã kết nối Webhook thành công! Đang theo dõi gian hàng Emerald.",
+                   ["color"] = 65280
                }}
            }
-           local newdata = game:GetService("HttpService"):JSONEncode(data)
-           local headers = {["content-type"] = "application/json"}
-           request = http_request or request or HttpPost or syn.request
-           local abcdef = {Url = webhookURL, Body = newdata, Method = "POST", Headers = headers}
-           request(abcdef)
-       else
-           Rayfield:Notify({Title = "Lỗi", Content = "Vui lòng nhập Webhook URL trước!", Duration = 3})
+           local req = http_request or request or HttpPost or syn.request
+           req({Url = webhookURL, Body = game:GetService("HttpService"):JSONEncode(data), Method = "POST", Headers = {["content-type"] = "application/json"}})
        end
    end,
 })
-
-SettingsTab:CreateParagraph({Title = "Anti-AFK", Content = "Hệ thống Anti-AFK đã được tự động kích hoạt ngầm. Bạn sẽ không bị kick khi treo máy."})
