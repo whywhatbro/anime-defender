@@ -2,36 +2,28 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "📦 AD Auto Booth",
-   LoadingTitle = "Tải hệ thống quản lý Booth...",
+   Name = "📦 AD Bulk Booth",
+   LoadingTitle = "Hệ thống đăng bán hàng loạt...",
    ConfigurationSaving = {Enabled = false},
    KeySystem = false
 })
 
-local Tab = Window:CreateTab("Tự Động", nil)
+local Tab = Window:CreateTab("Đăng Bán Hàng Loạt", nil)
 
--- Biến lưu trữ dữ liệu
-local isAutoListing = false
-local isAutoDelisting = false
-local targetItemName = "Star Shard (Yellow)"
+-- Biến lưu dữ liệu
+local targetName = ""
 local targetPrice = 100
-
-Tab:CreateParagraph({
-    Title = "⚠️ LƯU Ý QUAN TRỌNG",
-    Content = "Hãy bật SimpleSpy, tự đăng bán/hủy bán 1 lần bằng tay để lấy đường dẫn Remote, sau đó dán vào code để script có thể chạy thật."
-})
-
-Tab:CreateSection("Cài đặt vật phẩm")
+local listQuantity = 1
 
 Tab:CreateInput({
-   Name = "Tên Vật Phẩm (Chính xác)",
-   PlaceholderText = "Ví dụ: Star Shard (Yellow)",
+   Name = "Tên Vật Phẩm / Unit",
+   PlaceholderText = "Nhập chính xác tên (VD: Star Shard)...",
    RemoveTextAfterFocusLost = false,
-   Callback = function(Text) targetItemName = Text end,
+   Callback = function(Text) targetName = Text end,
 })
 
 Tab:CreateSlider({
-   Name = "Giá Emeralds",
+   Name = "Giá mỗi món (Emeralds)",
    Range = {1, 10000},
    Increment = 1,
    Suffix = " Emeralds",
@@ -40,50 +32,36 @@ Tab:CreateSlider({
    Callback = function(Value) targetPrice = Value end,
 })
 
-Tab:CreateSection("Chức năng tự động")
-
--- 1. CHỨC NĂNG TỰ ĐĂNG BÁN (AUTO LIST)
-Tab:CreateToggle({
-   Name = "BẬT Tự Động Đăng Bán",
-   CurrentValue = false,
-   Flag = "AutoList",
-   Callback = function(Value)
-       isAutoListing = Value
-       if isAutoListing then
-           task.spawn(function()
-               while isAutoListing do
-                   task.wait(2) -- Thời gian delay giữa mỗi lần đăng (chỉnh số này nếu muốn nhanh/chậm)
-                   pcall(function()
-                       
-                       -- ❌ THAY MÃ REMOTE ĐĂNG BÁN CỦA GAME VÀO DÒNG BÊN DƯỚI ❌
-                       -- Ví dụ cấu trúc chuẩn: game:GetService("ReplicatedStorage").RemoteEvent:FireServer("List", targetItemName, targetPrice)
-                       
-                   end)
-               end
-           end)
-       end
-   end,
+Tab:CreateSlider({
+   Name = "Số lượng muốn đăng cùng lúc",
+   Range = {1, 10}, -- Booth trong game thường có tối đa 10 ô
+   Increment = 1,
+   Suffix = " Ô",
+   CurrentValue = 1,
+   Flag = "SetQuantity",
+   Callback = function(Value) listQuantity = Value end,
 })
 
--- 2. CHỨC NĂNG TỰ HỦY BÁN (AUTO DELIST)
-Tab:CreateToggle({
-   Name = "BẬT Tự Động Hủy Bán",
-   CurrentValue = false,
-   Flag = "AutoDelist",
-   Callback = function(Value)
-       isAutoDelisting = Value
-       if isAutoDelisting then
-           task.spawn(function()
-               while isAutoDelisting do
-                   task.wait(2)
-                   pcall(function()
-                       
-                       -- ❌ THAY MÃ REMOTE HỦY BÁN CỦA GAME VÀO DÒNG BÊN DƯỚI ❌
-                       -- Ví dụ cấu trúc chuẩn: game:GetService("ReplicatedStorage").RemoteEvent:FireServer("Unlist", targetItemName)
-                       
-                   end)
-               end
-           end)
-       end
+Tab:CreateButton({
+   Name = "🚀 Thực Hiện Đăng Bán",
+   Callback = function()
+       -- Chạy ngầm để không làm đơ game
+       task.spawn(function()
+           for i = 1, listQuantity do
+               pcall(function()
+                   -- ❌ THAY MÃ REMOTE ĐĂNG BÁN VÀO DÒNG BÊN DƯỚI ❌
+                   -- Ví dụ: game:GetService("ReplicatedStorage").RemoteEvent:FireServer("List", targetName, targetPrice)
+               end)
+               
+               -- Nghỉ 0.5 giây giữa mỗi lần ném đồ lên booth để không bị game kick vì spam
+               task.wait(0.5) 
+           end
+           
+           Rayfield:Notify({
+               Title = "Thành công",
+               Content = "Đã đưa " .. listQuantity .. " " .. targetName .. " lên gian hàng.",
+               Duration = 4
+           })
+       end)
    end,
 })
